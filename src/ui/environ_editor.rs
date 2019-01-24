@@ -213,7 +213,11 @@ impl Update for EnvironEditor {
                     )
                 );
 
-                let index = self.notebook.append_page(&tab_page, Some(&tab));
+                let mut index = self.notebook.append_page(&tab_page, Some(&tab));
+                while self.environ_sources.contains_key(&index) {
+                    info!("index {} already be used, chose new one", &index);
+                    index += 1;
+                }
                 info!("Insert Environ id {} for {}", index, name);
                 self.environ_sources
                     .insert(index, (env.id(), name.to_owned(), tab_page, environ_source));
@@ -233,10 +237,15 @@ impl Update for EnvironEditor {
 
             Msg::TogglingEnvironmentIndex(idx) => {
                 info!("Switch to page {}", idx);
-                self.model.current = idx;
+                let mut id_temp = idx;
+                if !self.environ_sources.contains_key(&id_temp) {
+                    info!("can not found id, select from exist envs");
+                    id_temp = *self.environ_sources.iter().next().expect("empty env").0;
+                }
+                self.model.current = id_temp;
                 let &(ref id, _, _, _) = self
                     .environ_sources
-                    .get(&idx)
+                    .get(&id_temp)
                     .expect("Should be a valid tab page index");
                 self.relm.stream().emit(Msg::TogglingEnvironment(*id))
             }

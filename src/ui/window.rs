@@ -63,6 +63,13 @@ impl Model {
     pub fn environments(&self) -> &[Environment] {
         self.workspace.environments()
     }
+    pub fn is_only_env(&self) -> bool {
+        self.environments()
+            .iter()
+            .filter(|env| env.active())
+            .count()
+            == 1
+    }
     pub fn create_environment(&mut self, name: &str) -> &Environment {
         self.workspace.create_environment(name)
     }
@@ -238,6 +245,10 @@ impl Update for Window {
             }
             Msg::DeletingEnvironment(id) => {
                 info!("Deleting environment {}", id);
+                if self.model.is_only_env() {
+                    info!("last env, do not delete it");
+                    return;
+                }
                 self.model.workspace.delete_environment(id);
                 self.env_editor
                     .stream()
