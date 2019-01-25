@@ -5,7 +5,11 @@ use std::vec::Vec;
 use gdk;
 use gdk::enums::key;
 use gtk::prelude::*;
-use gtk::{self, Button, IconSize, Orientation, ReliefStyle, ScrolledWindow};
+use gtk::{
+    self, Button, Dialog, DialogExt, IconSize, Orientation, ReliefStyle,
+    ScrolledWindow,
+};
+use gtk_sys::{GTK_RESPONSE_ACCEPT, GTK_RESPONSE_CANCEL};
 use relm::{connect, connect_stream, Relm, Update, Widget};
 use serde_yaml;
 use sourceview::prelude::*;
@@ -13,6 +17,9 @@ use sourceview::{self, LanguageManager, StyleSchemeManager, View as SourceView};
 
 use super::super::errors::RustamanError;
 use super::super::models::{Environment, Environments};
+
+const RESPONSE_ACCEPT: i32 = GTK_RESPONSE_ACCEPT as i32;
+const RESPONSE_CANCEL: i32 = GTK_RESPONSE_CANCEL as i32;
 
 pub struct Model {
     current: u32,
@@ -40,6 +47,7 @@ pub enum Msg {
     TogglingEnvironmentIndex(u32),
     TogglingEnvironment(usize),
     DeletingEnvironment(usize),
+    ConfirmDeleteEnvironment(usize),
     EnvironmentDeleted(usize),
 }
 
@@ -148,6 +156,17 @@ impl Update for EnvironEditor {
                     _ => {}
                 }
             }
+            Msg::ConfirmDeleteEnvironment(env_id) => {
+                let dialog = Dialog::new();
+                dialog.add_button("Cancel", RESPONSE_CANCEL);
+                dialog.add_button("Want to delete?", RESPONSE_ACCEPT);
+                let result = dialog.run();
+                if result == RESPONSE_ACCEPT {
+                    self.relm.stream().emit(Msg::DeletingEnvironment(env_id));
+                }
+                dialog.destroy();
+            }
+
             Msg::AppendingEnvironment(env) => {
                 let env_id = env.id();
                 let name = env.name();
@@ -167,7 +186,7 @@ impl Update for EnvironEditor {
                         self.relm,
                         button,
                         connect_clicked(_),
-                        Msg::DeletingEnvironment(env_id)
+                        Msg::ConfirmDeleteEnvironment(env_id)
                     );
 
                     tab.pack_start(&label, false, false, 0);
